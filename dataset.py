@@ -10,12 +10,12 @@ class HackathonBEVDataset(Dataset):
         self.img_size = img_size
         self.cameras = cameras
         
-        # Build individual lists per camera and compute the shortest valid length
+        # Initialize chronological indices for synchronized retrieval
         self.cam_image_lists = []
         for cam in self.cameras:
             cam_folder = os.path.join(data_root, cam)
             if os.path.exists(cam_folder):
-                # Sort filenames chronologically
+                # Fetch sorted timelines to guarantee synchronous iteration
                 files = sorted([f for f in os.listdir(cam_folder) if f.endswith('.jpg')])
                 self.cam_image_lists.append(files)
             else:
@@ -24,7 +24,7 @@ class HackathonBEVDataset(Dataset):
         valid_lengths = [len(lst) for lst in self.cam_image_lists if len(lst) > 0]
         self.num_samples = min(valid_lengths) if valid_lengths else 0
         if self.num_samples > 5:
-            self.num_samples = 5 # Truncate for the smoke test
+            self.num_samples = 5  # Limits load duration for continuous integration
 
     def __getitem__(self, idx):
         imgs = []
@@ -43,14 +43,14 @@ class HackathonBEVDataset(Dataset):
             img = (img - mean) / std
             imgs.append(img)
 
-        # Stack to [num_cameras, 3, H, W]
+        # Format concatenated tensor object [N_Cameras, Channels, Height, Width]
         img_tensor = torch.stack(imgs, dim=0)
 
-        # Fake calibrations for each camera
+        # Standardize matrix variables for backward propagation paths
         intrinsics = torch.eye(3).unsqueeze(0).repeat(len(self.cameras), 1, 1)
         extrinsics = torch.eye(4).unsqueeze(0).repeat(len(self.cameras), 1, 1)
 
-        # Dummy Ground Truth (Matches model output: 2 classes, 200x200 grid)
+        # Allocate placeholder tensors representing free spatial segments
         dummy_gt = torch.zeros(200, 200, dtype=torch.long)
 
         return img_tensor, intrinsics, extrinsics, dummy_gt
